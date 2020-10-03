@@ -22,17 +22,34 @@ typedef struct watch {
 } Watch;
 
 // Method "watch_run" called in each stopwatch thread
-void *watch_run(void *w) {
+void *watch_run(void *wat) {
+    Watch *currWatch = (Watch *)wat;
     // Get starting time
     struct timespec start; 
+    double start_sec, end_sec, elapsed_sec;
     clock_gettime(CLOCK_REALTIME, &start); 
-    return start;
+    start_sec = start.tv_sec + start.tv_nsec/NANO_PER_SEC;
+
+    int forever = 1;
+    while (forever) {
+        if (currWatch->status_flag == 1) {
+            currWatch->status_flag = 0;
+            struct timespec end;
+            clock_gettime(CLOCK_REALTIME, &end);
+            int elapsed = end.tv_sec - start.tv_sec;
+            printf("Time elapsed: %d\n", elapsed);
+        }
+        if (currWatch->stop_flag == 0) {
+            printf("Watch is now stopped.\n");
+            return NULL;
+        }
+        sleep(1);
+    }
     printf("Starting stopwatch\n");
 }
 
+Watch *stop_watch[NUM_WATCHES];
 int main() {
-    Watch *stop_watch[NUM_WATCHES];
-
     // Fills in watch 9 times
     for(int i=0; i<NUM_WATCHES; i++) { 
         stop_watch[i] = malloc(sizeof(Watch));
@@ -45,8 +62,6 @@ int main() {
     int quit = FALSE;
     // Cmd line arg
     char cmd[MAX_LEN]; 
-    // Watch number counter
-    int cnt = 0;
  
     // While we aren't supposed to quit
     while(!quit) {
@@ -59,7 +74,6 @@ int main() {
             quit = TRUE;
         // If user says start, get len of time (watch_num)
         } else if(strncmp("start",choice,sizeof cmd)==0) {
-            printf("Start\n");
             char *watch_num_str = strtok(NULL," \n"); 
             int watch_num;
             sscanf(watch_num_str,"%d",&watch_num);
@@ -70,15 +84,12 @@ int main() {
                 if(stop_watch[watch_num]->stop_flag == 0) {
                     // stop_flag == 1 means that it has started
                     stop_watch[watch_num]->stop_flag = 1;
-                    pthread_t watchThread;
-                    stop_watch[watch_num]->thr = watchThread;
-                    pthread_create(&watchThread, NULL, watch_run, &watch_num);
+                    pthread_create(&stop_watch[watch_num]->thr, NULL, watch_run, stop_watch[watch_num]);
                 }
             }
 
         // If user says stop
         } else if(strncmp("stop",choice,sizeof cmd)==0) {
-            printf("stop\n");
             char *watch_num_str = strtok(NULL," \n"); 
             int watch_num;
             sscanf(watch_num_str,"%d",&watch_num);
@@ -100,16 +111,10 @@ int main() {
             if(stop_watch[watch_num] -> stop_flag == 0) {
                 printf("This stopwatch is not currently running.\n");
             } else if(stop_watch[watch_num] -> stop_flag == 1) {
-                struct timespec end; 
-                clock_gettime(CLOCK_REALTIME, &end); 
-                struct timespec *t;
-                // Received advice from Caleb on how to return timespec from the run method
-                pthread_join(stop_watch[watch_num]->thr, (void**)&t);
-                printf("Time elapsed on this stopwatch: %ld\n", t->tv_sec);
+                stop_watch[watch_num]->status_flag = 1;
             }
         } else {
             printf("%s is not a valid choice\n",choice);
         }
-        cnt++;
     }
 }
