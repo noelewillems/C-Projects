@@ -63,6 +63,12 @@ Limit history to 10 cmds. Only output 10 cmds.
 #include <unistd.h>
 #include <dirent.h>
 #define INPUT_BUFF_SIZE 512
+#define numCmds 100
+// Global variable for history - initialized to 100, BUT pwd will truncate to 10.
+// Array of pointers to char arrays. 
+char* history[numCmds];
+// Index tracker
+int historyIndex = 0;
 
 void alias() {
 
@@ -146,6 +152,17 @@ void doCmd(char* cmd, char* args) {
 
 // Returns a 1 if the command is "exit"
 int parseCmd(char* input) {
+    char cmdStr[strlen(input)];
+    int a = 0;
+    for(int i = 0; i < strlen(input); i++) {
+        cmdStr[i] = *(input + a);
+        a++;
+    }
+    history[historyIndex] = cmdStr;
+    printf("parse cmd, history at hi: %s\n", history[historyIndex]);
+    historyIndex = historyIndex + 1;
+    printf("new hi: %d\n", historyIndex);
+    
     // Get cmd
     char *cmd = strtok(input, " ");
     // Get args
@@ -155,7 +172,7 @@ int parseCmd(char* input) {
     if(strcmp(cmd, "exit") == 0) {
         return 1;
     } else {
-        // Send original input line to do the cmd
+        // Send cmd and args 
         doCmd(cmd, args);
     }
     return 0;
@@ -179,5 +196,11 @@ void run() {
 
 int main(int argc, char* argv[]) {
     run();
+    printf("History of cmds: \n");
+    for(int i = 0; i < numCmds; i++) {
+        if(history[i] != NULL) {
+            printf("%d %s\n", i, history[i]);
+        }
+    }
     return(EXIT_SUCCESS);
 }
