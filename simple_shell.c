@@ -42,10 +42,11 @@ Limit history to 10 cmds. Only output 10 cmds.
     [x] run - run()
     [x] parseCmd - parseCmd()
     [x] doCmd - do Cmd()
-    executeProg - <program_name> <args>
+    [x] executeProg - <program_name> <args>
     [x] changeDir - cd
     [x] listFiles - ls
-    showHistory - pwd
+    [x] showHistory - pwd
+    [x] help - help
     alias
 
     TO DO
@@ -61,6 +62,8 @@ Limit history to 10 cmds. Only output 10 cmds.
 #include <ctype.h>
 #include <stddef.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 #include <dirent.h>
 #define INPUT_BUFF_SIZE 512
 #define numCmds 100
@@ -70,26 +73,86 @@ char* history[numCmds];
 // Index tracker
 int historyIndex = 0;
 
+// Help section! 
+// Source for fun colors: http://web.theurbanpenguin.com/adding-color-to-your-output-from-c/
+void red () { printf("\033[1;31m"); }
+void blue () { printf("\033[0;34m"); }
+void yellow() { printf("\033[1;33m"); }
+void cyan() { printf("\033[0;36m"); }
+void magenta() { printf("\033[0;35m"); }
+void green() { printf("\033[0;32m"); }
+void reset() { printf("\033[0m"); }
+
+void help() {
+    magenta();
+    printf("\n\n           ❀");
+    cyan();
+    printf("  ❀");
+    green();
+    printf("  ❀");
+    cyan();
+    printf("  Welcome to Noel's Shell! ");
+    green();
+    printf(" ❀");
+    cyan();
+    printf("  ❀");
+    magenta();
+    printf("  ❀\n");
+    yellow();
+    printf("\n                       Available Commands: \n\n");
+    green();
+    printf(" ► ");
+    reset();
+    printf("ls                          Displays list of files in current directory\n");
+    green();
+    printf(" ► ");
+    reset();
+    printf("cd <path>                   Change cwd to one specified by path. Entering \"cd ..\" will move up one directory\n");
+    green();
+    printf(" ► ");
+    reset();
+    printf("history                     Shows all past commands\n");
+    green();
+    printf(" ► ");
+    reset();
+    printf("!!                          Run previous command\n");
+    green();
+    printf(" ► ");
+    reset();
+    printf("! <n>                       Run nth command in history\n");
+    green();
+    printf(" ► ");
+    reset();
+    printf("<prog> <args>               Runs executable prog with args (if any)\n");
+    green();
+    printf(" ► ");
+    reset();
+    printf("alias <name> = <cmd>        Creates a new alias with called <name> that executes <cmd>\n");
+    green();
+    printf(" ► ");
+    reset();
+    printf("unalias <name>              Removes existing alias with the name <name>\n");
+}
 void alias() {
 
 }
 
-void showHistory() {
-
+void runNthCmd(char* args) {
+    printf("Running %s th command\n", args);
 }
 
-// ls: list files in current directory.
-// Source: https://www.geeksforgeeks.org/c-program-list-files-sub-directories-directory/
-void listFiles() {
-    struct dirent *de;
-    DIR *directory = opendir("."); 
-    if(directory == NULL) {
-        printf("Could not open the current directory.\n");
+void runPrevCmd() {
+    printf("Run previous cmd.\n");
+    printf("Current history index: %d\n", historyIndex);
+}
+// history: show past commands.
+void showHistory() {
+    printf("History of cmds: \n");
+    for(int i = 0; i < numCmds; i++) {
+        if(history[i] != NULL) {
+            printf("%d %s\n", i, history[i]);
+        }
     }
-    while ((de = readdir(directory)) != NULL) {
-        printf("%s\n", de->d_name); 
-    } 
-    closedir(directory);     
 }
 
 // cd: change directories specified by args
@@ -131,7 +194,13 @@ void changeDir(char* args) {
 
 // Execute programs with fork/exec - cmd is the program name; args are... the args
 void exe(char* cmd, char* args) {
-    printf("Execute a cmd.\n");
+    int status = fork();
+    if(status < 0) {
+        printf("Failed to execute %s!\n", cmd);
+        exit(1);
+    } else if(status == 0) {
+        execv(cmd, &args);
+    }
 }
 
 // Send cmds to their respective methods
@@ -139,29 +208,45 @@ void doCmd(char* cmd, char* args) {
     // Change dir
     if(strcmp(cmd, "cd") == 0) {
         changeDir(args);
-    }
     // List files
-    if(strcmp(cmd, "ls") == 0) {
-        listFiles();
-    }
-    // If it's none of the above, assume it's an executable.
-    else {
+    } else if(strcmp(cmd, "ls") == 0) {
+        int status;
+        char *args[2];
+        args[0] = "/bin/ls";
+        args[1] = NULL;
+        if (fork() == 0) { execv( args[0], args ); }
+    // History
+    } else if(strcmp(cmd, "history") == 0) {
+        showHistory();
+    // Show help
+    } else if(strcmp(cmd, "help") == 0) {
+        help();
+    // Run previous command
+    } else if(strcmp(cmd, "!!") == 0) {
+        runPrevCmd();
+    // Run nth command
+    } else if(strcmp(cmd, "!") == 0) {
+        runNthCmd(args);
+    // If none of the above, executable
+    } else {
         exe(cmd, args);
     }
 }
 
 // Returns a 1 if the command is "exit"
 int parseCmd(char* input) {
-    char cmdStr[strlen(input)];
+    // Mallocing cmdStr
+    char *cmdStr = (char*)malloc(strlen(input) * sizeof(char));
+    // Filling in cmdStr with input
     int a = 0;
     for(int i = 0; i < strlen(input); i++) {
         cmdStr[i] = *(input + a);
         a++;
     }
+    // Putting cmdStr in the array
     history[historyIndex] = cmdStr;
-    printf("parse cmd, history at hi: %s\n", history[historyIndex]);
+    // Moving down array
     historyIndex = historyIndex + 1;
-    printf("new hi: %d\n", historyIndex);
     
     // Get cmd
     char *cmd = strtok(input, " ");
@@ -175,6 +260,7 @@ int parseCmd(char* input) {
         // Send cmd and args 
         doCmd(cmd, args);
     }
+
     return 0;
 }
 
@@ -184,8 +270,9 @@ void run() {
     int exit = 0;
     char *input = malloc(INPUT_BUFF_SIZE * sizeof(char));
     while(exit == 0) {
+        // TO DO: handle null input (blank line)
         printf("> ");
-        fgets(input, INPUT_BUFF_SIZE, stdin) ;
+        fgets(input, INPUT_BUFF_SIZE, stdin);
         // Null-terminating input
         input[strlen(input) - 1] = '\0';
         // Exit flag
@@ -196,11 +283,5 @@ void run() {
 
 int main(int argc, char* argv[]) {
     run();
-    printf("History of cmds: \n");
-    for(int i = 0; i < numCmds; i++) {
-        if(history[i] != NULL) {
-            printf("%d %s\n", i, history[i]);
-        }
-    }
     return(EXIT_SUCCESS);
 }
