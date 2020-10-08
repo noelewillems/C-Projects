@@ -1,41 +1,8 @@
 /* 
-Created by Noel Willems: a simple shell program
+Code created by Noel Willems: a simple shell program
 Sources:
-    Concept of various methods (no code taken from this site): https://brennan.io/2015/01/16/write-a-shell-in-c/
+    Some concepts (no code taken from this site): https://brennan.io/2015/01/16/write-a-shell-in-c/
     Other sources listed in respective sections.
-
-
-Notes:
-- Loops until user exits.
-
-Main:
-while (!exit)
-    > Prompt for cmd (512 chars max)
-    > Parse input
-    > Execute cmd
-        if (cmd = exit)
-            exit
-
-
-1. cd changeDirectory() 
-    - goes up a level in the directory
-    - if there is no further level, print an error message
-
-2. executables
-if there is a command that is not a method, then assume it's an executable.
-use fork/exec to run the program.
-if program does not exist, don't run it.
->>>Structures Needed<<<
-    - fork / exec
-
-3. pwd history()
-Limit history to 10 cmds. Only output 10 cmds.
-    - shows history of cmds, numbered 0 --> (starting with pwd)
-    - if user enters !! after pwd, run the previous cmd in history (if no prev cmd, error)
-    - if user enters ! <n>, run the nth cmd in history (if invalid n, error)
->>>Structures Needed<<<
-    - Array of cmds as strings
-    - Array of cmds and their aliases - so aliases and which method they go to? Maybe?
 
     ALL COMPONENTS:
     [x] main - main()
@@ -47,13 +14,13 @@ Limit history to 10 cmds. Only output 10 cmds.
     [x] listFiles - ls
     [x] showHistory - pwd
     [x] help - help
-    alias
+    [ ] ! <n> - do nth cmd
+    [x] !! - do prev cmd 
+    [ ] alias
 
     TO DO
-    1. ls
-    2. pwd 
-    3. alias
-    4. execute
+    - alias
+    - ! <n>
 */
 
 #include <stdio.h>
@@ -67,7 +34,7 @@ Limit history to 10 cmds. Only output 10 cmds.
 #include <dirent.h>
 #define INPUT_BUFF_SIZE 512
 #define numCmds 100
-// Global variable for history - initialized to 100, BUT pwd will truncate to 10.
+// Global variable for history - initialized to 100, BUT will truncate to 10 when printing.
 // Array of pointers to char arrays. 
 char* history[numCmds];
 // Index tracker
@@ -137,14 +104,6 @@ void alias() {
 
 }
 
-void runNthCmd(char* args) {
-    printf("Running %s th command\n", args);
-}
-
-void runPrevCmd() {
-    printf("Run previous cmd.\n");
-    printf("Current history index: %d\n", historyIndex);
-}
 // history: show past commands.
 void showHistory() {
     printf("History of cmds: \n");
@@ -194,6 +153,7 @@ void changeDir(char* args) {
 
 // Execute programs with fork/exec - cmd is the program name; args are... the args
 void exe(char* cmd, char* args) {
+    printf("cmd: %s\n", cmd);
     int status = fork();
     if(status < 0) {
         printf("Failed to execute %s!\n", cmd);
@@ -223,7 +183,7 @@ void doCmd(char* cmd, char* args) {
         help();
     // Run previous command
     } else if(strcmp(cmd, "!!") == 0) {
-        runPrevCmd();
+        doCmd(history[historyIndex-2], args);
     // Run nth command
     } else if(strcmp(cmd, "!") == 0) {
         runNthCmd(args);
@@ -260,7 +220,6 @@ int parseCmd(char* input) {
         // Send cmd and args 
         doCmd(cmd, args);
     }
-
     return 0;
 }
 
@@ -277,7 +236,6 @@ void run() {
         input[strlen(input) - 1] = '\0';
         // Exit flag
         exit = parseCmd(input);
-        printf("===================\n");
     }
 }
 
