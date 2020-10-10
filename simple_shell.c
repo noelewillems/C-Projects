@@ -21,6 +21,7 @@ Sources:
     TO DO
     - alias
     - ! <n>
+    - Make history only 10 long
 */
 
 #include <stdio.h>
@@ -101,7 +102,7 @@ void help() {
     printf("unalias <name>              Removes existing alias with the name <name>\n");
 }
 void alias() {
-
+    // TO DO: alias
 }
 
 // history: show past commands.
@@ -183,10 +184,24 @@ void doCmd(char* cmd, char* args) {
         help();
     // Run previous command
     } else if(strcmp(cmd, "!!") == 0) {
-        doCmd(history[historyIndex-2], args);
+        // Don't allow users to call !! first
+        if(history[historyIndex-2] == NULL) {
+            printf("\"!!\" cannot be the first command\n");
+        // Avoid infinite loop if prev was !!
+        } else if(strcmp(history[historyIndex-2], "!!") == 0) {
+            printf("Sorry, cannot inifinitely call \"!!\"\n");
+        } else {
+            doCmd(history[historyIndex-2], args);
+        }        
     // Run nth command
     } else if(strcmp(cmd, "!") == 0) {
-        runNthCmd(args);
+        int i = atoi(args);
+        // If you try to run nth command of a nonexistent n or a 0
+        if(i >= historyIndex || i == 0) {
+            printf("Command #%d doesn't exist\n", i);
+        } else {
+            doCmd(history[i], NULL);
+        }
     // If none of the above, executable
     } else {
         exe(cmd, args);
