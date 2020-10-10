@@ -1,9 +1,12 @@
 /* 
 Code created by Noel Willems: a simple shell program
 Sources:
-    Some concepts (no code taken from this site): https://brennan.io/2015/01/16/write-a-shell-in-c/
+    Some concepts (no code taken from this site EXCEPT for some of exe()): https://brennan.io/2015/01/16/write-a-shell-in-c/
     Other sources listed in respective sections.
 
+NOTE:
+    In one of your examples for alias, you did "alias ll = 'ls -l'". There is whitespace surrounding the equal signs.
+    This breaks in the "regular" Unix shell, so it breaks in mine as well - so if you do not format alias perfectly (aka like alias <name>='<cmd>', it will not work either.)
     ALL COMPONENTS:
     [x] main - main()
     [x] run - run()
@@ -49,7 +52,9 @@ struct aka {
 } aka;
 
 // Array of the aliases structs 
-struct aka aliases[NUM_ALIASES];
+struct aka* aliases[NUM_ALIASES];
+// Index tracker 
+int akaIndex = 0;
 
 // Array of pointers to char arrays of past commands. 
 char* history[NUM_CMDS];
@@ -64,7 +69,7 @@ void yellow() { printf("\033[1;33m"); }
 void cyan() { printf("\033[0;36m"); }
 void magenta() { printf("\033[0;35m"); }
 void green() { printf("\033[0;32m"); }
-void reset() { printf("\033[0m"); }
+void resetColor() { printf("\033[0m"); }
 
 void help() {
     magenta();
@@ -85,42 +90,60 @@ void help() {
     printf("\n                       Available Commands: \n\n");
     green();
     printf(" ► ");
-    reset();
-    printf("ls                          Displays list of files in current directory\n");
+    resetColor();
+    printf("ls                          [Unix built-in] Displays list of files in current directory\n");
     green();
     printf(" ► ");
-    reset();
+    resetColor();
+    printf("pwd                         [Unix built-in] Prints working directory\n");
+    green();
+    printf(" ► ");
+    resetColor();
     printf("cd <path>                   Change cwd to one specified by path. Entering \"cd ..\" will move up one directory\n");
     green();
     printf(" ► ");
-    reset();
+    resetColor();
     printf("history                     Shows all past commands\n");
     green();
     printf(" ► ");
-    reset();
+    resetColor();
     printf("!!                          Run previous command\n");
     green();
     printf(" ► ");
-    reset();
+    resetColor();
     printf("! <n>                       Run nth command in history\n");
     green();
     printf(" ► ");
-    reset();
+    resetColor();
     printf("<prog> <args>               Runs executable prog with args (if any)\n");
     green();
     printf(" ► ");
-    reset();
+    resetColor();
     printf("alias <name>='<cmd>'        Creates a new alias with called <name> that executes <cmd>\n");
     green();
     printf(" ► ");
-    reset();
+    resetColor();
     printf("unalias <name>              Removes existing alias with the name <name>\n");
 }
+
+// alias <name>='<cmd>': create alias
 void createAlias(char* str) {
-    printf("Received %s\n", str);
     char* alias = strtok(str, "=");
     char* cmd = strtok(NULL, "");
-    printf("Alias \"%s\" should run cmd %s\n", alias, cmd);
+    // If they don't put a cmd
+    if(cmd == NULL) {
+        red();
+        printf("❌ Correct formatting for alias: alias <name>='<cmd>'\n");
+        resetColor();
+    } else {
+        // Get rid of apostrophes
+        char *clean = strtok(cmd, "'");
+        aliases[akaIndex] = (struct aka*)malloc(sizeof(struct aka));
+        aliases[akaIndex]->aliasName = alias;
+        aliases[akaIndex]->cmdName = clean;
+        akaIndex = akaIndex + 1;
+        printf("alias: %s\n", aliases[akaIndex - 1]->aliasName);
+    }
 }
 
 // history: show past commands.
@@ -172,11 +195,10 @@ void changeDir(char* args) {
 
 // Execute programs with fork/exec - cmd is the program name; args are... the args
 void exe(char* cmd, char* args) {
-    int status = fork();
-    if(status < 0) {
-        printf("Failed to execute %s!\n", cmd);
-        exit(1);
-    } else if(status == 0) {
+    pid_t pid, wpid;
+    int status;
+    pid = fork();
+    if (pid == 0) {
         char* argsPtrs[NUM_ARGS];
         argsPtrs[0] = cmd;
         char* delim = " ";
@@ -187,8 +209,24 @@ void exe(char* cmd, char* args) {
             ar = strtok(NULL, delim);
             x = x + 1;
         }
-        execvp(cmd, argsPtrs);
-        exit(0);
+        argsPtrs[x] = NULL;
+        // Child process
+        if (execvp(cmd, argsPtrs) == -1) {
+            red();
+            perror("lsh");
+            resetColor();
+        }
+        exit(EXIT_FAILURE);
+    } 
+    else if (pid < 0) {
+        // Error forking
+        perror("lsh");
+    } 
+    else {
+        // Parent process
+        do {
+            wpid = waitpid(pid, &status, WUNTRACED);
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
     }
 }
 
@@ -197,12 +235,6 @@ void doCmd(char* cmd, char* args) {
     // Change dir
     if(strcmp(cmd, "cd") == 0) {
         changeDir(args);
-    // Print working directory
-    } else if (strcmp(cmd, "pwd") == 0){
-        char s[100];
-        // Get the current working directory path name
-        getcwd(s, 100);
-        printf("%s\n", s);
     // History
     } else if(strcmp(cmd, "history") == 0) {
         showHistory();
@@ -229,23 +261,25 @@ void doCmd(char* cmd, char* args) {
         } else {
             doCmd(history[i], NULL);
         }
-    // View all existing aliases
-    } else if((strcmp(cmd, "alias") == 0) && args == NULL) {
-        printf("List of aliases:\n");
-        // Flag signifying array is empty
-        int isEmpty = 1;
-        for(int i = 0; i < NUM_ALIASES; i++) {
-            if(aliases[i].aliasName != NULL) {
-                isEmpty = 0;
-                printf("Aliases at i: %s\n", aliases[i].aliasName);
-            }
-        }
-        if(isEmpty) {
-                printf("No existing aliases\n");
-        }
     // Create an alias for a command
     } else if((strcmp(cmd, "alias") == 0) && args != NULL){
         createAlias(args);
+    // View all existing aliases
+    } else if((strcmp(cmd, "alias") == 0) && args == NULL) {
+        printf("List of aliases:\n");
+        printf("%s\n", aliases[0]->aliasName);
+        printf("numAliases %d\n", NUM_ALIASES);
+        // Flag signifying array is empty
+        int isEmpty = 1;
+        for(int i = 0; i < NUM_ALIASES; i++) {
+            if(aliases[i]->aliasName != NULL) {
+                isEmpty = 0;
+                printf("%s\n", aliases[i]->aliasName);
+            }
+        }
+        if(isEmpty) {
+            printf("No existing aliases\n");
+        }
     // If none of the above, executable
     } else {
         exe(cmd, args);
@@ -300,5 +334,6 @@ void run() {
 
 int main(int argc, char* argv[]) {
     run();
+    printf("Alias at 0: %s\n", aliases[0]->aliasName);
     return(EXIT_SUCCESS);
 }
