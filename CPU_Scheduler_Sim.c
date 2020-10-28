@@ -2,24 +2,16 @@
 // Compile like: gcc CPU_Scheduler_Sim.c -o cpu_sim
 // Run like: cpu_sim <process file name> <algorithm name>
 
-/*
-1.  Input file processing: take in process file name.
-    a. Ignore comments (line starts with "//")
-    b. Every line is: <process id> <cpu burst> <io burst> <repetitions> <priority>
-    c. Example: 1 100 0 1 1 = process 1 spends 100 ticks in the cpu, 0 in io, occurs only once, and has a priority of 1 (low priority = first)
-2.  Make a struct for each process. Have the id, cpu time, io time, rep, and priority all be properties of the struct.
-3.  Add processes to the array of waiting processes.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
+#include <strings.h>
 #include <ctype.h>
 
 int idle_CPU_time;
-
+int numProcesses; // num of total processes
 
 typedef struct Process {
     int id; // id of process
@@ -31,21 +23,41 @@ typedef struct Process {
     int end_time; // when the process ends
     int wait_time; // how long process spends in RTR queue
 } Process;
+Process** rtr; // ready to run "queue"
 
-Process* rtr; // ready to run "queue"
+// First come, first serve method
+void fcfs() {
+    printf("first come first serve method\n");
+}
+
+// Priority scheduling method
+void ps() {
+    printf("priority scheduling method\n");
+}
+
+// Shortest job first method
+void sjf() {
+    printf("shortest job first method\n");
+}
+
+// Round robin method
+void rr() {
+    printf("round robin method\n");
+}
 
 int main(int argc, char *argv[]) {
     // Malloc array of processes in rtr
-    rtr = (Process*)malloc(sizeof(Process) * 256);
+    rtr = (Process**)malloc(sizeof(Process) * 256);
+
     // Make sure the user inputs the correct number of args. If not, make suggestion & exit.
     if(argc != 3) {
-        printf("Please enter args like this: <program name> <process file name> <algorithm name>\n");
+        printf("Please enter args like: <program name> <process file name> <algorithm name>\n");
         exit(0);
     }
 
     char* proc_file_name = argv[1]; // process file name
     char* algorithm_name = argv[2]; // algorithm name
-    char* allTokens[10];
+    char* allTokens[10]; // all tokens that can be on a line
 
     // Processing input file - if error, output message and return.
     FILE * inputFile = fopen(proc_file_name, "r"); // file of list of processes
@@ -54,8 +66,10 @@ int main(int argc, char *argv[]) {
 		return (-1);
 	}
 
+    int procCount = 0;
     char line[128]; // initialize line to array of chars
     char *pos; // for getting rid of newline chars
+
     while (fgets(line, sizeof(line), inputFile)) {
         // Null-terminating the line
         line[strlen(line)] = '\0';
@@ -80,30 +94,37 @@ int main(int argc, char *argv[]) {
             // Send to method that processes line char by char
             char* token = strtok(line, " ");
             proc->id = atoi(token);
-            printf("%s is the id\n", token);
             int track = 1;
-            int procCount = 0;
             while(token != NULL) {
                 if(track == 1) {
                     proc->cpu_time = atoi(token);
-                    printf("%s is the cpu time\n", token);
                 }
                 if(track == 2) {
                     proc->io_time = atoi(token);
-                    printf("%s is the io time\n", token);
                 }
                 if(track == 3) {
                     proc->reps = atoi(token);
-                    printf("%s is the rep\n", token);
                 }
                 if(track == 4) {
                     proc->priority = atoi(token);
-                    printf("%s is the pri\n", token);
                 }
                 track++;              
                 token = strtok(NULL, " ");
             }
             rtr[procCount] = proc;
+            procCount++;
         }
+    }
+
+    numProcesses = procCount;
+
+    if(strcasecmp(algorithm_name, "FCFS") == 0) {
+        fcfs();
+    } else if(strcasecmp(algorithm_name, "PS") == 0) {
+        ps();
+    } else if(strcasecmp(algorithm_name, "SJF") == 0) {
+        sjf();
+    } else if(strcasecmp(algorithm_name, "RR") == 0) {
+        rr();
     }
 }
