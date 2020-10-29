@@ -121,9 +121,9 @@ void fcfs() {
     cpu->idle_time = 0;
     cpu->busy = 0;
     Node* curr; // current node pointer
-    curr = rtr_head;  
-    rtr_head = rtr_head->next; // new head of queue - curr is sent ot the CPU.
-    curr->next = NULL;
+    // curr = rtr_head;  
+    // rtr_head = rtr_head->next; // new head of queue - curr is sent ot the CPU.
+    // curr->next = NULL;
     // while(curr != NULL) {  
     //     if(cpu->busy = 0) {
     //         if(curr->proc->cpu_time>0) {
@@ -151,22 +151,25 @@ void fcfs() {
         }
 
         // If CPU's process is finished
-        if(cpu->cpu_process->proc->cpu_time == cpu->cpu_process->proc->currTime) {
-            // Remove from CPU, if there is IO time and more reps, do IO
-            Node* finished_cpu_proc = cpu->cpu_process;
-            if(cpu->cpu_process->proc->io_time > 0) {
-                addToIO(finished_cpu_proc);
+        if(cpu->cpu_process != NULL) {
+            if(cpu->cpu_process->proc->cpu_time == cpu->cpu_process->proc->currTime) {
+                // Remove from CPU, if there is IO time and more reps, do IO
+                Node* finished_cpu_proc = cpu->cpu_process;
+                if(cpu->cpu_process->proc->io_time > 0) {
+                    addToIO(finished_cpu_proc);
+                }
+                cpu->cpu_process = NULL;
             }
-            cpu->cpu_process = NULL;
-
+        } else {
+            cpu->idle_time++;
+            printf("cpu idle time: %d\n", cpu->idle_time);
         }
-
+    
         // If CPU has a process
         if(cpu->cpu_process != NULL) {
             cpu->busy++;
             cpu->cpu_process->proc->currTime++;
         }
-
 
         // If CPU's process is unfinished
         ticks++;
