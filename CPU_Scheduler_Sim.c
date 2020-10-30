@@ -138,18 +138,18 @@ void run() {
     while(done == 0) {  
         // If CPU is free, add in the next process.
         if(cpu->busy == 0) {
-            printf("CPU is free. Start process.\n");
             cpu->cpu_process = curr; // CPU process is curr
             cpu->busy = 1; // CPU is now busy
             elapsed_cpu_time++; // Keep track of how long curr is in CPU
         }
 
-        // If CPU is busy, check to see if that process has finished running.
+        // If CPU is busy
         if(cpu->busy == 1) {
+            // Check if process is done running
             if(elapsed_cpu_time == cpu->cpu_process->proc->cpu_time) {
                 // After process is done, reduce its number of reps.
                 curr->proc->reps--; 
-                // If there are more repetitions, put back into the RTR. Then remove it from the CPU.
+                // If there are more repetitions, put back into the RTR and free the CPU.
                 if(curr->proc->reps > 0) {
                     Node* putBack = rtr_head;
                     while(putBack->next != NULL) {
@@ -157,14 +157,12 @@ void run() {
                     } 
                     putBack->next = curr;
                     curr->next = NULL;  
-                    cpu->cpu_process->proc = NULL;
-                }
-
-                // If there are no more repetitions, add to finished queue. Remove it from the CPU.
-                if(curr->proc->reps == 0) {
-                    printf("Adding process %d to finished queue.\n", curr->proc->id);
-                    cpu->cpu_process->proc = NULL;
-                    exit(0);
+                    cpu->busy = 0;
+                //    cpu->cpu_process->proc = NULL;
+                // If there are no more repetitions, put it in the finished queue and free the CPU.
+                } else if(curr->proc->reps == 0) {                   
+                //    cpu->cpu_process->proc = NULL;
+                    cpu->busy = 0;
                 }
             } else {
                 elapsed_cpu_time++;
@@ -174,16 +172,19 @@ void run() {
         printf("|        %d |                 %d |      xx |\n", ticks, cpu->cpu_process->proc->id);
         ticks++;
         // Check if there are any more processes in the RTR.
-        if(rtr_head != NULL) {
-            printf("rtr head: %d\n", rtr_head->proc->id);
+        if(rtr_head != NULL && cpu->busy == 0) {
             curr = rtr_head;
             rtr_head = rtr_head->next; // "Pop off" the head of rtr and make it curr.
-            printf("new rtr head (next process): %d\n", rtr_head->proc->id);
             curr->next = NULL;
+            cpu->cpu_process = curr;
+            elapsed_cpu_time = 0;
+        } else if(rtr_head == NULL) {
+            printf("finished!\n");
+            done = 1;
         }
     }
-    printf("new RTR: \n");
-    printRTR();
+//    printf("new RTR: \n");
+//    printRTR();
 }
 
 // First come, first serve method : sort queue
