@@ -2,6 +2,12 @@
 // Compile like: gcc CPU_Scheduler_Sim.c -o cpu_sim
 // Run like: cpu_sim <process file name> <algorithm name>
 
+/*
+IDEA:
+1. Sort queue appropriately.
+2. Send to a method that runs a while loop, going over CPU and IO.
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -11,8 +17,8 @@
 #include <ctype.h>
 
 int numProcesses; // num of total processes
-int ticks = 0;
-
+int ticks = 0; // ticks 
+int done = 0; // 1 means all processes are done.
 // Process
 typedef struct Process {
     int id; // id of process
@@ -69,7 +75,7 @@ void addToIO(Node* proc) {
 
 // IO stuff
 void IO_stuff(Node* curr) {
-    printf("curr: %d\n", curr->proc->id);
+    printf("%d is doing io now for a burst of %d\n", curr->proc->id, curr->proc->io_time);
     Node* p = io_head;
     
     // Add process to list of IO LL
@@ -112,15 +118,84 @@ void CPU_stuff(Node* curr, CPU* cpu) {
     cpu->busy = 0;
 }
 
-
-// First come, first serve method
-void fcfs() {
-    // CPU and initializations
+void run() {
+    // Create and initialize the CPU.
     CPU* cpu = malloc(sizeof(CPU*));
     cpu->busy_time = 0;
     cpu->idle_time = 0;
     cpu->busy = 0;
-    Node* curr; // current node pointer
+    Node* curr; // current node pointer of the RTR queue
+    curr = rtr_head; // initialize to beginning of sorted RTR queue
+    rtr_head = rtr_head->next; // "pop off" curr fromt he list
+    curr->next = NULL;
+    printf("------------------------------------------\n");
+    printf("| Tick     | CPU Process ID     | IO     |\n");
+    printf("------------------------------------------\n");
+
+    int elapsed_cpu_time= 0;
+
+    // Begin running the whole program.
+    while(done == 0) {  
+        // If CPU is free, add in the next process.
+        if(cpu->busy == 0) {
+            printf("CPU is free. Start process.\n");
+            cpu->cpu_process = curr; // CPU process is curr
+            cpu->busy = 1; // CPU is now busy
+            elapsed_cpu_time++; // Keep track of how long curr is in CPU
+        }
+
+        // If CPU is busy, check to see if that process has finished running.
+        if(cpu->busy == 1) {
+            if(elapsed_cpu_time == cpu->cpu_process->proc->cpu_time) {
+                // After process is done, reduce its number of reps.
+                curr->proc->reps--; 
+                // If there are more repetitions, put back into the RTR. Then remove it from the CPU.
+                if(curr->proc->reps > 0) {
+                    Node* putBack = rtr_head;
+                    while(putBack->next != NULL) {
+                        putBack = putBack->next;
+                    } 
+                    putBack->next = curr;
+                    curr->next = NULL;  
+                    cpu->cpu_process->proc = NULL;
+                }
+
+                // If there are no more repetitions, add to finished queue. Remove it from the CPU.
+                if(curr->proc->reps == 0) {
+                    printf("Adding process %d to finished queue.\n", curr->proc->id);
+                    cpu->cpu_process->proc = NULL;
+                    exit(0);
+                }
+            } else {
+                elapsed_cpu_time++;
+            }
+        }
+
+        printf("|        %d |                 %d |      xx |\n", ticks, cpu->cpu_process->proc->id);
+        ticks++;
+        // Check if there are any more processes in the RTR.
+        if(rtr_head != NULL) {
+            printf("rtr head: %d\n", rtr_head->proc->id);
+            curr = rtr_head;
+            rtr_head = rtr_head->next; // "Pop off" the head of rtr and make it curr.
+            printf("new rtr head (next process): %d\n", rtr_head->proc->id);
+            curr->next = NULL;
+        }
+    }
+    printf("new RTR: \n");
+    printRTR();
+}
+
+// First come, first serve method : sort queue
+void fcfs() {
+    printRTR();
+    run();
+    // CPU and initializations
+    // CPU* cpu = malloc(sizeof(CPU*));
+    // cpu->busy_time = 0;
+    // cpu->idle_time = 0;
+    // cpu->busy = 0;
+    // Node* curr; // current node pointer
     // curr = rtr_head;  
     // rtr_head = rtr_head->next; // new head of queue - curr is sent ot the CPU.
     // curr->next = NULL;
@@ -138,43 +213,43 @@ void fcfs() {
     //     }
 
     // }
-    while(1) {
-        // cpu: empty, full, process finished, process unfinished
-        // If CPU is empty
-        if(cpu->cpu_process == NULL) {
-            curr = rtr_head; // new head of queue
-            if(rtr_head != NULL) {
-                rtr_head = rtr_head->next; // "popping off" the head of the rtr queue
-                curr->next = NULL;
-            }            
-            cpu->cpu_process = curr;
-        }
+    // while(1) {
+    //     // cpu: empty, full, process finished, process unfinished
+    //     // If CPU is empty
+    //     if(cpu->cpu_process == NULL) {
+    //         curr = rtr_head; // new head of queue
+    //         if(rtr_head != NULL) {
+    //             rtr_head = rtr_head->next; // "popping off" the head of the rtr queue
+    //             curr->next = NULL;
+    //         }            
+    //         cpu->cpu_process = curr;
+    //     }
 
-        // If CPU's process is finished
-        if(cpu->cpu_process != NULL) {
-            if(cpu->cpu_process->proc->cpu_time == cpu->cpu_process->proc->currTime) {
-                // Remove from CPU, if there is IO time and more reps, do IO
-                Node* finished_cpu_proc = cpu->cpu_process;
-                if(cpu->cpu_process->proc->io_time > 0) {
-                    addToIO(finished_cpu_proc);
-                }
-                cpu->cpu_process = NULL;
-            }
-        } else {
-            cpu->idle_time++;
-            printf("cpu idle time: %d\n", cpu->idle_time);
-        }
+    //     // If CPU's process is finished, remove it from the CPU. If there's IO stuff to do, send it to the IO.
+    //     if(cpu->cpu_process != NULL) {
+    //         if(cpu->cpu_process->proc->cpu_time == cpu->cpu_process->proc->currTime) {
+    //             // Remove from CPU, if there is IO time and more reps, do IO
+    //             Node* finished_cpu_proc = cpu->cpu_process;
+    //             if(cpu->cpu_process->proc->io_time > 0) {
+    //                 addToIO(finished_cpu_proc);
+    //             }
+    //             cpu->cpu_process = NULL;
+    //         }
+    //     } else {
+    //         cpu->idle_time++;
+    //         printf("cpu idle time: %d\n", cpu->idle_time);
+    //     }
     
-        // If CPU has a process
-        if(cpu->cpu_process != NULL) {
-            cpu->busy++;
-            cpu->cpu_process->proc->currTime++;
-        }
+    //     // If CPU has a process
+    //     if(cpu->cpu_process != NULL) {
+    //         cpu->busy++;
+    //         cpu->cpu_process->proc->currTime++;
+    //     }
 
-        // If CPU's process is unfinished
-        ticks++;
-    }
-    printf("cpu busy time: %d\n", cpu->busy_time);
+    //     // If CPU's process is unfinished
+    //     ticks++;
+    // }
+    // printf("cpu busy time: %d\n", cpu->busy_time);
 }
 
 // Priority scheduling method
