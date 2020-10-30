@@ -52,73 +52,76 @@ typedef struct CPU {
 void printRTR() {
     Node* curr;
     curr = rtr_head;
+    printf("RTR: ");
     while(curr != NULL) {
-        printf("rtr: %d\n", curr->proc->id);
+        printf("%d   ", curr->proc->id);
         curr = curr->next;
     }
+    printf("\n");
 }
 
-// Head of IO LL
-Node* io_head;
+// // Head of IO LL
+// Node* io_head;
 
-void addToIO(Node* proc) {
-    Node* p = io_head;
-    if(io_head == NULL) {
-        io_head = proc;
-    } else {
-        while(p->next != NULL) {
-            p = p->next;
-        }
-        p->next = proc;
-    }
-}
+// void addToIO(Node* proc) {
+//     Node* p = io_head;
+//     if(io_head == NULL) {
+//         io_head = proc;
+//     } else {
+//         while(p->next != NULL) {
+//             p = p->next;
+//         }
+//         p->next = proc;
+//     }
+// }
 
-// IO stuff
-void IO_stuff(Node* curr) {
-    printf("%d is doing io now for a burst of %d\n", curr->proc->id, curr->proc->io_time);
-    Node* p = io_head;
+// // IO stuff
+// void IO_stuff(Node* curr) {
+//     printf("%d is doing io now for a burst of %d\n", curr->proc->id, curr->proc->io_time);
+//     Node* p = io_head;
     
-    // Add process to list of IO LL
-    if(io_head == NULL) {
-        io_head = curr;
-    } else {
+//     // Add process to list of IO LL
+//     if(io_head == NULL) {
+//         io_head = curr;
+//     } else {
         
-        while(p->next != NULL) {
-            p = p->next;
-        }
-        p->next = curr;
-    }
+//         while(p->next != NULL) {
+//             p = p->next;
+//         }
+//         p->next = curr;
+//     }
 
-    Node* bob = io_head;
-    printf("io head: %d\n", io_head->proc->id);
-    while(bob != NULL) {
-    //    printf("%d\n", bob->proc->id);
-        bob = bob->next;
-    }
-    // Have process stay in IO_stuff for length of io_burst
-    // When io_burst is finished, if there are no repetitions left, it goes into finished queue. Else, goes back into RTR.
-    // When done with IO stuff, go back to queue.
-    Node* test = rtr_head;
-    while(test->next != NULL) {
-        test = test->next;
-    } 
-    test->next = curr;
-    curr->next = NULL;
-}
+//     Node* bob = io_head;
+//     printf("io head: %d\n", io_head->proc->id);
+//     while(bob != NULL) {
+//     //    printf("%d\n", bob->proc->id);
+//         bob = bob->next;
+//     }
+//     // Have process stay in IO_stuff for length of io_burst
+//     // When io_burst is finished, if there are no repetitions left, it goes into finished queue. Else, goes back into RTR.
+//     // When done with IO stuff, go back to queue.
+//     Node* test = rtr_head;
+//     while(test->next != NULL) {
+//         test = test->next;
+//     } 
+//     test->next = curr;
+//     curr->next = NULL;
+// }
 
 // CPU stuff
-void CPU_stuff(Node* curr, CPU* cpu) {     
+// void CPU_stuff(Node* curr, CPU* cpu) {     
 
-    cpu->cpu_process = curr;
-    // Increment CPU busy time every time a processes uses the CPU
-    for(int i = 1; i <= curr->proc->cpu_time; i++) {
-        cpu->busy_time++;
-        cpu->busy = 1;
-    }
-    cpu->busy = 0;
-}
+//     cpu->cpu_process = curr;
+//     // Increment CPU busy time every time a processes uses the CPU
+//     for(int i = 1; i <= curr->proc->cpu_time; i++) {
+//         cpu->busy_time++;
+//         cpu->busy = 1;
+//     }
+//     cpu->busy = 0;
+// }
 
 void run() {
+    printf("Run method\n");
     // Create and initialize the CPU.
     CPU* cpu = malloc(sizeof(CPU*));
     cpu->busy_time = 0;
@@ -183,84 +186,57 @@ void run() {
             done = 1;
         }
     }
-//    printf("new RTR: \n");
-//    printRTR();
 }
 
 // First come, first serve method : sort queue
 void fcfs() {
+    printf("First come, first serve method\n");
     printRTR();
     run();
-    // CPU and initializations
-    // CPU* cpu = malloc(sizeof(CPU*));
-    // cpu->busy_time = 0;
-    // cpu->idle_time = 0;
-    // cpu->busy = 0;
-    // Node* curr; // current node pointer
-    // curr = rtr_head;  
-    // rtr_head = rtr_head->next; // new head of queue - curr is sent ot the CPU.
-    // curr->next = NULL;
-    // while(curr != NULL) {  
-    //     if(cpu->busy = 0) {
-    //         if(curr->proc->cpu_time>0) {
-    //             CPU_stuff(curr, cpu);
-    //         }
-    //     }
-    //     // Repeat for number of repetitions
-    //     for(int i = 0; i < curr->proc->reps; i++) {
-    //         if((curr->proc->cpu_time > 0) && (cpu->busy == 0)) {
-    //             CPU_stuff(curr, cpu);
-    //         } 
-    //     }
-
-    // }
-    // while(1) {
-    //     // cpu: empty, full, process finished, process unfinished
-    //     // If CPU is empty
-    //     if(cpu->cpu_process == NULL) {
-    //         curr = rtr_head; // new head of queue
-    //         if(rtr_head != NULL) {
-    //             rtr_head = rtr_head->next; // "popping off" the head of the rtr queue
-    //             curr->next = NULL;
-    //         }            
-    //         cpu->cpu_process = curr;
-    //     }
-
-    //     // If CPU's process is finished, remove it from the CPU. If there's IO stuff to do, send it to the IO.
-    //     if(cpu->cpu_process != NULL) {
-    //         if(cpu->cpu_process->proc->cpu_time == cpu->cpu_process->proc->currTime) {
-    //             // Remove from CPU, if there is IO time and more reps, do IO
-    //             Node* finished_cpu_proc = cpu->cpu_process;
-    //             if(cpu->cpu_process->proc->io_time > 0) {
-    //                 addToIO(finished_cpu_proc);
-    //             }
-    //             cpu->cpu_process = NULL;
-    //         }
-    //     } else {
-    //         cpu->idle_time++;
-    //         printf("cpu idle time: %d\n", cpu->idle_time);
-    //     }
-    
-    //     // If CPU has a process
-    //     if(cpu->cpu_process != NULL) {
-    //         cpu->busy++;
-    //         cpu->cpu_process->proc->currTime++;
-    //     }
-
-    //     // If CPU's process is unfinished
-    //     ticks++;
-    // }
-    // printf("cpu busy time: %d\n", cpu->busy_time);
 }
 
-// Priority scheduling method
+// Priority scheduling method: order from lowest pri --> highest pri
 void ps() {
-    printf("priority scheduling method\n");
+    Node* curr = NULL;
+    Node* temp = NULL; // temporary Node
+    Process* temp_proc = NULL; // temporary Process pointer to process data of a Node
+    curr = rtr_head;
+    while(curr != NULL) {
+        temp = rtr_head;
+        while(temp->next != NULL) {
+            if(temp->proc->priority > temp->next->proc->priority) { // if the temp's priority is 'higher' than next's priority
+                temp_proc = temp->proc; // set the temp_proc Process to temp's process
+                temp->proc = temp->next->proc; // set temp's process to temp next's process
+                temp->next->proc = temp_proc; // set temp next's process to temp proc
+            }
+            temp = temp->next;
+        }
+        curr = curr->next;
+    }
+    printRTR();
 }
 
-// Shortest job first method
+// Shortest job first method: order from shortest job length --> longest job length
+// Job length = cpu time * reps
 void sjf() {
-    printf("shortest job first method\n");
+    Node* curr = NULL; 
+    Node* temp = NULL;
+    Process* temp_proc = NULL;
+    curr = rtr_head;
+
+    while(curr != NULL) {
+        temp = rtr_head;
+        while(temp->next != NULL) {
+            if((temp->proc->cpu_time * temp->proc->reps) > (temp->next->proc->cpu_time * temp->next->proc->reps)) {
+                temp_proc = temp->proc;
+                temp->proc = temp->next->proc;
+                temp->next->proc = temp_proc;
+            } 
+            temp = temp->next;
+        }
+        curr = curr->next;
+    }
+    printRTR();
 }
 
 // Round robin method
@@ -270,10 +246,10 @@ void rr() {
 
 int main(int argc, char *argv[]) {
     Node* head = NULL; // initializing head of LL
-    io_head = NULL;
+//    io_head = NULL;
     // CPU
     CPU* cpu = malloc(sizeof(CPU*));
-    cpu->busy_time = 0;
+//    cpu->busy_time = 0;
     // Make sure the user inputs the correct number of args. If not, make suggestion & exit.
     if(argc != 3) {
         printf("Please enter args like: <program name> <process file name> <algorithm name>\n");
