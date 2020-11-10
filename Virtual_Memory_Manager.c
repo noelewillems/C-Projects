@@ -23,8 +23,21 @@ Entry tlb[TLB_LENGTH];
 Entry page_table[PAGE_TABLE_LENGTH];
 
 // Physical memory: array of 256 pointers to char arrays
-char* physical_memory[PHYS_MEM_LENGTH];
+unsigned char* physical_memory[PHYS_MEM_LENGTH];
 
+// Load a page from the backing store into physical memory
+int loadIntoPhysicalMem(unsigned char* page) {
+    int frameNum = 0;
+    for(int i = 0; i < PHYS_MEM_LENGTH; i++) {
+        if(physical_memory[i] == NULL) {
+            physical_memory[i] = page;
+            frameNum = i;
+            return i;
+        }
+    }
+}
+
+// Load data from backing store if a page fault occurs
 void loadFromBackingStore(int pageNum, int offset, char* file_name) {
     unsigned char page[PAGE_SIZE];
     FILE *fbin = fopen(file_name, "rb");
@@ -34,6 +47,8 @@ void loadFromBackingStore(int pageNum, int offset, char* file_name) {
     }
     fseek(fbin,pageNum*PAGE_SIZE,SEEK_SET);
     fread(page,PAGE_SIZE,1,fbin);      
+    printf("     Load into physical memory.\n");
+    loadIntoPhysicalMem(page);
     printf("     page: %d, offset: %d, data: %d\n",pageNum,offset, page[offset]);
     fclose(fbin);    
 }
